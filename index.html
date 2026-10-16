@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ElmenFrio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: consola de operador — panel de escenario a la izquierda, salida y decisión a la derecha; pestañas para evaluación, transparencia y planta.
+   Identidad: blanco salino de la Alta Guajira, azul de mar profundo, hielo y arena; rótulos condensados como la señalética de una cámara frigorífica. */
+:root{
+  --bg:#f2f5f6; --surface:#ffffff; --surface2:#e9eff1; --ink:#0d2530; --ink2:#4a5f68; --muted:#76878e; --line:#d6dfe2;
+  --accent:#0f6f8f; --accent-ink:#ffffff; --ice:#2fa6c8; --sand:#b9773a;
+  --ok:#0a8a0a; --warn:#b97800; --crit:#c73636; --ok-bg:#e6f4e6; --warn-bg:#fbf1dc; --crit-bg:#fbe7e7;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --sg:#9aa5a9; --grid:#e1e6e8; --axis:#c3ccd0;
+  --f-disp:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b161b; --surface:#11212a; --surface2:#172b35; --ink:#e7f0f2; --ink2:#a8bbc2; --muted:#7d9199; --line:#243a44;
+  --accent:#3fa9cc; --accent-ink:#06161c; --ice:#7fd6ec; --sand:#d9a56f;
+  --ok:#3cc13c; --warn:#e3a92c; --crit:#ef6f6f; --ok-bg:#12301a; --warn-bg:#33270c; --crit-bg:#3a1517;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sg:#6b777c; --grid:#1f323b; --axis:#33474f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b161b; --surface:#11212a; --surface2:#172b35; --ink:#e7f0f2; --ink2:#a8bbc2; --muted:#7d9199; --line:#243a44;
+  --accent:#3fa9cc; --accent-ink:#06161c; --ice:#7fd6ec; --sand:#d9a56f;
+  --ok:#3cc13c; --warn:#e3a92c; --crit:#ef6f6f; --ok-bg:#12301a; --warn-bg:#33270c; --crit-bg:#3a1517;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --sg:#6b777c; --grid:#1f323b; --axis:#33474f; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body)}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-disp);font-weight:600;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.1}
+h2{font-size:1.6rem}
+h3{font-size:1.2rem}
+p{margin:0}
+.lbl{font:600 .72rem/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--accent)}
+/* Cabecera */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;padding-block:22px 14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;gap:14px;align-items:center}
+.mark{width:46px;height:46px;flex:none}
+.brand h1{font-size:2.3rem;font-weight:700;letter-spacing:.02em}
+.brand h1 span{color:var(--ice)}
+.brand p{color:var(--ink2);font-size:.95rem}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:.8rem;color:var(--ink2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+/* Pestañas */
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-block:12px;scrollbar-width:none}
+nav.tabs button{font:600 1.05rem var(--f-disp);letter-spacing:.04em;text-transform:uppercase;border:0;background:none;color:var(--ink2);padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+nav.tabs button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+/* Rejilla operar */
+.op{display:grid;grid-template-columns:minmax(0,370px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.op{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.step{display:flex;align-items:baseline;gap:10px}
+.step b{font:700 1rem var(--f-mono);color:var(--accent)}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface2);border-radius:8px;padding:4px}
+.seg button{border:0;background:none;padding:7px 4px;border-radius:6px;font:600 .82rem var(--f-body);color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.presets button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--ink);font:600 .86rem/1.25 var(--f-body)}
+.presets button small{display:block;font-weight:400;color:var(--muted);font-size:.76rem}
+.presets button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+select,input[type=number],input[type=file]{width:100%;font:inherit;font-size:.92rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.field{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+.field label{font-size:.9rem;color:var(--ink)}
+.field label small{color:var(--muted);font-size:.78rem}
+.field .val{font:500 .9rem var(--f-mono);color:var(--ink);text-align:right;min-width:74px}
+.field input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent);margin:0}
+.field .na{grid-column:1/-1;font-size:.75rem;color:var(--warn)}
+.fields{display:flex;flex-direction:column;gap:12px}
+.sep{border:0;border-top:1px dashed var(--line);margin:0}
+.hint{font-size:.82rem;color:var(--muted)}
+/* Salida */
+.out-head{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:620px){.out-head{grid-template-columns:minmax(0,1fr)}}
+.big{font:600 2.6rem/1 var(--f-disp);font-variant-numeric:tabular-nums}
+.big small{font-size:1.1rem;color:var(--ink2);margin-left:2px}
+.kv{display:flex;flex-direction:column;gap:4px}
+.sub{font-size:.85rem;color:var(--ink2)}
+svg text{font-family:var(--f-body)}
+.therm{width:100%;height:auto;display:block}
+.decision{border-radius:var(--r);padding:18px;border:1px solid var(--line);display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 16px}
+.decision .ico{grid-row:1/4;width:54px;height:54px;border-radius:12px;display:grid;place-items:center}
+.decision h3{font-size:1.7rem}
+.decision.crit{background:var(--crit-bg);border-color:var(--crit)}.decision.crit .ico{background:var(--crit);color:var(--surface)}
+.decision.warn{background:var(--warn-bg);border-color:var(--warn)}.decision.warn .ico{background:var(--warn);color:var(--surface)}
+.decision.ok{background:var(--ok-bg);border-color:var(--ok)}.decision.ok .ico{background:var(--ok);color:var(--surface)}
+@media (max-width:620px){.decision{grid-template-columns:minmax(0,1fr)}.decision .ico{grid-row:auto;width:44px;height:44px}}
+.decision ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:.93rem}
+.costs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:4px}
+@media (max-width:620px){.costs{grid-template-columns:minmax(0,1fr)}}
+.costs div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.costs b{display:block;font:600 1.15rem var(--f-mono)}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 .78rem var(--f-body);padding:2px 9px;border-radius:999px;border:1px solid currentColor}
+.pill.ok{color:var(--ok)}.pill.crit{color:var(--crit)}.pill.warn{color:var(--warn)}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th{font:600 .7rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td.txt{font-family:var(--f-body);white-space:normal;text-align:left}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--ink2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.note{border-left:3px solid var(--sand);background:var(--surface2);padding:10px 12px;border-radius:0 8px 8px 0;font-size:.88rem;color:var(--ink2)}
+.note.crit{border-left-color:var(--crit)}
+/* Evaluación */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi .big{font-size:2.1rem}
+.kpi .sub b{color:var(--ink)}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chartbox{position:relative}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.78rem;padding:6px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .1s}
+.timeline{display:flex;height:34px;border-radius:8px;overflow:hidden;font:600 .78rem var(--f-body)}
+.timeline div{display:flex;align-items:center;justify-content:center;color:#fff;gap:6px;min-width:0;overflow:hidden;white-space:nowrap}
+.prose{max-width:72ch;display:flex;flex-direction:column;gap:10px;color:var(--ink2)}
+.prose b{color:var(--ink)}
+.prose ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.flow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.flow div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.flow div p{font-size:.88rem;color:var(--ink2)}
+.flow .lbl{color:var(--accent)}
+footer{margin-top:36px;padding-top:14px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
+/* Asistente (DeepSeek) */
+body{padding-bottom:40px}
+.chat-fab{position:fixed;right:16px;bottom:16px;z-index:40;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:12px 18px;background:var(--accent);color:var(--accent-ink);font:600 1rem var(--f-body);box-shadow:0 6px 18px rgba(0,0,0,.2);cursor:pointer}
+.chat-fab svg,.chat-ico svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:620px){.chat-fab span{display:none}}
+.chat{position:fixed;right:16px;bottom:16px;z-index:50;width:min(420px,calc(100vw - 32px));height:min(640px,calc(100dvh - 32px));display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.28);overflow:hidden}
+.chat-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 10px 10px 16px;background:var(--ink);color:var(--bg)}
+.chat-head h2{font-size:1.3rem}
+.chat-modo{font-size:.78rem;opacity:.85}
+.chat-tools{display:flex;gap:2px}
+.chat-ico{width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer;display:grid;place-items:center}
+.chat-ico:hover{background:rgba(127,127,127,.25)}
+.chat-ico svg{width:18px;height:18px}
+.chat-ajustes{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface2);font-size:.9rem}
+.chat-ajustes input[type=password],.chat-ajustes input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.chk{display:flex;gap:8px;align-items:center}
+.fila-btn{display:flex;gap:8px;flex-wrap:wrap}
+.btn-pri,.btn-sec{border-radius:8px;padding:8px 14px;font:600 .9rem var(--f-body);cursor:pointer}
+.btn-pri{border:0;background:var(--accent);color:var(--accent-ink)}
+.btn-sec{border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:.93rem;line-height:1.45;overflow-wrap:anywhere}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg ul{margin:4px 0 6px;padding-left:18px}
+.msg code{font-family:var(--f-mono);font-size:.85em;background:var(--surface);padding:0 4px;border-radius:4px}
+.msg.yo{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px;white-space:pre-wrap}
+.msg.bot{align-self:flex-start;background:var(--surface2);border-bottom-left-radius:4px}
+.msg.err{align-self:stretch;max-width:none;background:var(--crit-bg);border:1px solid var(--crit)}
+.msg.pensando::after{content:"Pensando…";color:var(--muted);animation:parpadeo 1.2s infinite}
+@keyframes parpadeo{50%{opacity:.35}}
+.chat-sug{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px}
+.chat-sug button{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:5px 10px;font:.8rem var(--f-body);cursor:pointer;text-align:left}
+.chat-input{display:flex;gap:8px;align-items:flex-end;padding:10px 12px;border-top:1px solid var(--line)}
+.chat-input textarea{flex:1;resize:none;font:inherit;font-size:.93rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-height:120px}
+.chat-aviso{font-size:.72rem;color:var(--muted);padding:0 16px 8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="1" y="1" width="46" height="46" rx="11" fill="var(--ink)"/>
+        <g stroke="var(--ice)" stroke-width="2.4" stroke-linecap="round" fill="none">
+          <path d="M24 10v28M12 17l24 14M12 31l24-14"/>
+          <path d="M20 12l4 3 4-3M20 36l4-3 4 3"/>
+        </g>
+        <circle cx="35" cy="13" r="5" fill="var(--sand)"/>
+      </svg>
+      <div>
+        <h1>Elmen<span>Frio</span></h1>
+        <p>Riesgo térmico nocturno de la planta de frío solar para pescado y mariscos</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip">Cabo de la Vela · Uribia · Alta Guajira</span>
+      <span class="chip">k vecinos más cercanos</span>
+      <span class="chip" id="motorChip"><span class="dot"></span><span id="motorTxt">Modelo en el navegador</span></span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button role="tab" id="t-operar" aria-selected="true" aria-controls="operar">Operar esta noche</button>
+    <button role="tab" id="t-eval" aria-selected="false" aria-controls="eval">Evaluación del modelo</button>
+    <button role="tab" id="t-transp" aria-selected="false" aria-controls="transp">Transparencia</button>
+    <button role="tab" id="t-planta" aria-selected="false" aria-controls="planta">La planta</button>
+  </nav>
+
+  <!-- ===================== OPERAR ===================== -->
+  <section id="operar" role="tabpanel" aria-labelledby="t-operar">
+    <div class="op">
+      <aside class="panel stack" aria-label="Escenario de entrada">
+        <div class="step"><b>1</b><h2>Escenario de las 17:00</h2></div>
+        <p class="hint">Lecturas del datalogger al cierre de la jornada. El modelo busca en 1.136 noches pasadas las más parecidas.</p>
+        <div class="seg" role="group" aria-label="Origen de los datos">
+          <button type="button" data-src="ejemplo" aria-pressed="true">Ejemplos</button>
+          <button type="button" data-src="historico" aria-pressed="false">Histórico</button>
+          <button type="button" data-src="archivo" aria-pressed="false">Archivo</button>
+          <button type="button" data-src="manual" aria-pressed="false">Manual</button>
+        </div>
+        <div id="src-ejemplo" class="presets"></div>
+        <div id="src-historico" hidden class="stack">
+          <label class="hint" for="selHist">Noche del periodo de prueba (mar–dic 2025, datos que el modelo nunca vio)</label>
+          <select id="selHist"></select>
+          <p class="hint" id="histReal"></p>
+        </div>
+        <div id="src-archivo" hidden class="stack">
+          <label class="hint" for="fileCsv">CSV con encabezados: <span class="mono">soc_17_pct, pv_kwh_dia, t_amb_17_c, hr_17_pct, captura_kg, stock_kg, t_camara_17_c, aperturas_puerta</span> (opcional <span class="mono">fecha</span>, <span class="mono">t_max_noche_anterior_c</span>). Separador coma o punto y coma.</label>
+          <input type="file" id="fileCsv" accept=".csv,text/csv">
+          <select id="selCsv" hidden></select>
+          <p class="hint" id="csvMsg"></p>
+        </div>
+        <p id="src-manual" hidden class="hint">Mueva los controles: la salida se recalcula al instante.</p>
+        <hr class="sep">
+        <div class="fields" id="fields"></div>
+        <hr class="sep">
+        <div class="fields">
+          <div class="field">
+            <label for="f-anoche">T máx. de anoche <small>(solo para la línea base)</small></label>
+            <span class="val" id="v-anoche"></span>
+            <input type="range" id="f-anoche" min="-22" max="8" step="0.1" value="-22">
+          </div>
+        </div>
+        <details>
+          <summary class="lbl" style="cursor:pointer">Supuestos económicos</summary>
+          <div class="fields" style="margin-top:12px">
+            <div class="field"><label for="cDiesel">Costo de una noche con diésel (COP)</label><span></span><input type="number" id="cDiesel" step="10000" min="0" value="120000"></div>
+            <div class="field"><label for="cExc">Pérdida por noche con excursión (COP)</label><span></span><input type="number" id="cExc" step="50000" min="0" value="1500000"></div>
+            <div class="field">
+              <label for="fUmbral">Umbral de decisión P(excursión)</label>
+              <span class="val" id="vUmbral"></span>
+              <input type="range" id="fUmbral" min="0.02" max="0.8" step="0.01" value="0.17">
+            </div>
+            <p class="hint" id="umbralHint"></p>
+          </div>
+        </details>
+      </aside>
+
+      <div class="stack">
+        <div class="panel stack" aria-live="polite">
+          <div class="step"><b>2</b><h2>Salida del modelo</h2></div>
+          <div class="out-head">
+            <div class="kv"><span class="lbl">T máxima esperada esta noche</span><span class="big num" id="oPred">—</span><span class="sub" id="oBand"></span></div>
+            <div class="kv"><span class="lbl">Probabilidad de pasar de −18 °C</span><span class="big num" id="oProb">—</span><span class="sub" id="oProbTxt"></span></div>
+            <div class="kv"><span class="lbl">Confiabilidad del parecido</span><span class="big" id="oConf">—</span><span class="sub" id="oConfTxt"></span></div>
+          </div>
+          <svg class="therm" id="therm" viewBox="0 0 640 104" role="img" aria-label="Escala de temperatura de la cámara de congelación"></svg>
+        </div>
+
+        <div class="panel stack">
+          <div class="step"><b>3</b><h2>Decisión para el operador</h2></div>
+          <div class="decision" id="dec">
+            <div class="ico" id="decIco"></div>
+            <h3 id="decTitle">—</h3>
+            <p id="decWhy" class="sub"></p>
+            <ul id="decActs"></ul>
+          </div>
+          <div class="costs">
+            <div><span class="lbl">Si NO enciende (esperado)</span><b id="eNo">—</b><span class="hint">probabilidad × pérdida</span></div>
+            <div><span class="lbl">Si enciende el diésel</span><b id="eSi">—</b><span class="hint">costo fijo de la noche</span></div>
+            <div><span class="lbl">La persistencia diría</span><b id="ePers" style="font-family:var(--f-body)">—</b><span class="hint" id="ePersTxt"></span></div>
+          </div>
+        </div>
+
+        <div class="panel stack">
+          <div class="step"><b>4</b><h2>Las noches parecidas que usó el modelo</h2></div>
+          <p class="hint">k-NN no inventa una fórmula: muestra qué pasó en las <span id="kTxt">5</span> noches pasadas más parecidas y promedia su resultado, dando más peso a las más cercanas.</p>
+          <div class="tblwrap"><table id="tblVec"><thead><tr><th>Fecha</th><th>Peso</th><th>SOC %</th><th>FV kWh</th><th>Captura kg</th><th>Stock kg</th><th>T cám. 17h</th><th>T máx. noche</th><th>Resultado</th></tr></thead><tbody></tbody></table></div>
+          <div class="two">
+            <div class="chartbox">
+              <svg class="chart" id="mapa" viewBox="0 0 420 270" role="img" aria-label="Mapa de noches pasadas por SOC y captura"></svg>
+              <div class="tip" id="mapaTip"></div>
+            </div>
+            <div class="stack">
+              <div class="legend"><span><i style="background:var(--s1)"></i>Noche sin excursión</span><span><i style="background:var(--s2)"></i>Noche con excursión</span><span><i style="border:2px solid var(--ink);background:none"></i>Escenario actual</span><span><i style="border:2px solid var(--accent);background:none"></i>Vecino usado</span></div>
+              <p class="hint">Vista de 2 de las 8 variables (SOC de la batería y captura recibida). Los vecinos se buscan en las 8 dimensiones a la vez, con todas las variables estandarizadas; por eso algún vecino puede no verse “pegado” en este plano.</p>
+              <p class="note">El SOC de las 17:00 es la variable que más pesa: con la batería por debajo de ~60 % casi todas las noches pasadas terminaron en excursión. La captura grande del día pesa en segundo lugar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== EVALUACIÓN ===================== -->
+  <section id="eval" role="tabpanel" aria-labelledby="t-eval" hidden>
+    <div class="stack">
+      <div class="panel stack">
+        <h2>Partición cronológica 60 / 20 / 20</h2>
+        <div class="timeline" id="timeline"></div>
+        <p class="hint">Nunca aleatoria: el modelo aprende del pasado y se evalúa en el futuro. k, la ponderación y el umbral se eligieron solo con validación; la prueba se usó una sola vez.</p>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="two">
+        <div class="panel stack">
+          <h3>Costo total en el periodo de prueba</h3>
+          <p class="hint" id="barSub"></p>
+          <div class="chartbox"><svg class="chart" id="barras" viewBox="0 0 520 260" role="img" aria-label="Costo por política"></svg><div class="tip" id="barTip"></div></div>
+        </div>
+        <div class="panel stack">
+          <h3>Costo acumulado noche a noche</h3>
+          <div class="legend"><span><i style="background:var(--s2)"></i>Persistencia</span><span><i style="background:var(--s1)"></i>k-NN ElmenFrio</span><span><i style="background:var(--s3)"></i>Oráculo</span></div>
+          <div class="chartbox"><svg class="chart" id="acum" viewBox="0 0 520 240" role="img" aria-label="Costo acumulado"></svg><div class="tip" id="acumTip"></div></div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <h3>Detalle por política (periodo de prueba)</h3>
+        <div class="tblwrap"><table id="tblPol"><thead><tr><th>Política</th><th>Noches con diésel</th><th>Excursiones no evitadas</th><th>Costo total (COP)</th><th>vs. persistencia</th></tr></thead><tbody></tbody></table></div>
+        <div class="tblwrap"><table id="tblMet"><thead><tr><th>Métrica</th><th>Persistencia</th><th>k-NN</th><th>Lectura</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TRANSPARENCIA ===================== -->
+  <section id="transp" role="tabpanel" aria-labelledby="t-transp" hidden>
+    <div class="two">
+      <div class="panel stack prose">
+        <h2>Qué datos usa</h2>
+        <p>Un registro por día (1.461 días, 2022–2025) con 8 lecturas a las 17:00: <b>SOC de la batería</b>, <b>energía FV del día</b>, <b>temperatura y humedad ambiente</b>, <b>captura recibida</b>, <b>inventario en la cámara</b>, <b>temperatura de la cámara</b> y <b>aperturas de puerta</b>. La respuesta es la temperatura máxima de la cámara de congelación entre las 17:00 y las 07:00.</p>
+        <p><b>Origen.</b> El clima horario corresponde al punto 12,19 N; 72,15 O (Cabo de la Vela). El script descarga NASA POWER cuando hay conexión; en esta versión se usó un clima sintético calibrado con la climatología de la zona (≈5,9 kWh/m²·día, 27–34 °C, alisios fuertes dic–abr y jun–ago, lluvias sep–nov). La operación de la planta (FV, batería, cámaras, captura, despachos) se simuló hora a hora con un balance térmico y eléctrico.</p>
+        <p><b>Limpieza documentada.</b> 12 duplicados eliminados, 9 días vacíos por caída de comunicaciones, 8 SOC imposibles y 6 lecturas de sonda desconectada (85 °C) convertidas en hueco, 3 capturas negativas y 6 con un cero de más corregidas, 30 noches sin objetivo excluidas. Los huecos restantes se imputan con la mediana del entrenamiento.</p>
+      </div>
+      <div class="panel stack prose">
+        <h2>Qué tan confiable es</h2>
+        <ul id="confList"></ul>
+        <h2 style="margin-top:8px">Límites conocidos</h2>
+        <ul>
+          <li><b>Datos simulados.</b> Las cifras salen de una planta simulada. Antes de usarlo en serio hay que reentrenar con 6–12 meses del datalogger real de la planta.</li>
+          <li><b>No extrapola.</b> k-NN solo repite lo ya visto. Una situación nueva (batería degradada, equipo averiado, carga récord) devuelve noches parecidas que no lo son. La app avisa cuando el parecido es bajo.</li>
+          <li><b>Correlación, no causa.</b> Que muchas noches con mucha captura terminaran mal no prueba que bajar la captura evite el problema por sí sola.</li>
+          <li><b>Solo la cámara de congelación.</b> La cámara de refrigeración (0–4 °C) y el hielo no se modelan como objetivo.</li>
+          <li><b>Supuesto del diésel.</b> Se asume que el generador encendido evita la excursión. Una falla del generador no está modelada.</li>
+          <li><b>Deriva.</b> 2025 tuvo más noches críticas (29 %) que 2022–2024 (≈17 %). Conviene reentrenar cada trimestre.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PLANTA ===================== -->
+  <section id="planta" role="tabpanel" aria-labelledby="t-planta" hidden>
+    <div class="stack">
+      <div class="panel stack">
+        <h2>Planta comunitaria de frío solar · Cabo de la Vela</h2>
+        <p class="sub" style="max-width:80ch">Los pescadores artesanales desembarcan entre las 14:00 y las 16:00. El pescado fresco se guarda en hielo en la cámara de refrigeración y los mariscos (langosta, camarón, pulpo) se congelan a −22 °C hasta el despacho a Riohacha y Maicao los martes y viernes. Todo funciona con sol; de noche, con la batería. Si la batería no alcanza, el sistema de gestión desconecta el frío y la cámara se calienta.</p>
+        <div class="tblwrap"><svg viewBox="0 0 900 250" style="width:100%;min-width:640px;height:auto;display:block" role="img" aria-label="Esquema de la planta">
+          <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+          <g font-size="13" fill="var(--ink)">
+            <rect x="10" y="30" width="150" height="80" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="85" y="62" text-anchor="middle" font-weight="700">Generador FV</text><text x="85" y="82" text-anchor="middle" fill="var(--ink2)">13 kWp · salitre</text>
+            <rect x="10" y="150" width="150" height="80" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="85" y="182" text-anchor="middle" font-weight="700">Grupo diésel</text><text x="85" y="202" text-anchor="middle" fill="var(--ink2)">respaldo · la decisión</text>
+            <rect x="240" y="80" width="170" height="90" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="325" y="115" text-anchor="middle" font-weight="700">Batería LiFePO₄</text><text x="325" y="135" text-anchor="middle" fill="var(--ink2)">40 kWh · corte SOC 20 %</text>
+            <rect x="500" y="10" width="190" height="66" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-width="2"/>
+            <text x="595" y="38" text-anchor="middle" font-weight="700">Cámara de congelación</text><text x="595" y="58" text-anchor="middle" fill="var(--ink2)">−22 °C · límite −18 °C</text>
+            <rect x="500" y="92" width="190" height="66" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="595" y="120" text-anchor="middle" font-weight="700">Cámara de refrigeración</text><text x="595" y="140" text-anchor="middle" fill="var(--ink2)">0–4 °C · pescado en hielo</text>
+            <rect x="500" y="174" width="190" height="66" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="595" y="202" text-anchor="middle" font-weight="700">Máquina de hielo</text><text x="595" y="222" text-anchor="middle" fill="var(--ink2)">solo con excedente solar</text>
+            <rect x="745" y="60" width="145" height="130" rx="10" fill="var(--surface2)" stroke="var(--line)"/>
+            <text x="817" y="98" text-anchor="middle" font-weight="700">Datalogger</text><text x="817" y="118" text-anchor="middle" fill="var(--ink2)">lecturas 17:00</text><text x="817" y="150" text-anchor="middle" font-weight="700" fill="var(--accent)">ElmenFrio</text><text x="817" y="170" text-anchor="middle" fill="var(--ink2)">k-NN</text>
+          </g>
+          <g stroke="var(--muted)" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+            <path d="M160 70 C200 70 205 110 238 115"/>
+            <path d="M160 190 C210 190 230 190 498 207" stroke-dasharray="5 4"/>
+            <path d="M160 190 C300 190 380 60 498 45" stroke-dasharray="5 4"/>
+            <path d="M410 115 C450 115 460 45 498 43"/>
+            <path d="M410 125 L498 125"/>
+            <path d="M410 135 C450 135 460 205 498 205"/>
+            <path d="M690 43 C720 43 720 100 743 100"/>
+          </g>
+        </svg></div>
+      </div>
+      <div class="flow">
+        <div><span class="lbl">Dato</span><p>8 lecturas del datalogger a las 17:00 (batería, sol del día, clima, captura, inventario, cámara, puertas).</p></div>
+        <div><span class="lbl">Modelo</span><p>k vecinos más cercanos: busca las 5 noches pasadas más parecidas, ponderadas por distancia.</p></div>
+        <div><span class="lbl">Salida</span><p>T máxima esperada de la cámara esta noche, banda P10–P90 y probabilidad de pasar de −18 °C.</p></div>
+        <div><span class="lbl">Decisión</span><p>Encender o no el grupo diésel de 18:00 a 06:00, comparando costo esperado contra costo fijo.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>ElmenFrio · Proyecto final · Machine Learning aplicado a sistemas energéticos · Especialización en Sistemas Energéticos Sostenibles, Universidad de La Guajira · 2026</span>
+    <span>Elses David Mendoza Ramos</span>
+  </footer>
+</div>
+
+<!-- ===================== ASISTENTE ===================== -->
+<button type="button" class="chat-fab" id="chatAbrir" aria-controls="chat" aria-expanded="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span>Asistente</span>
+</button>
+<section class="chat" id="chat" role="dialog" aria-labelledby="chatTitulo" hidden>
+  <header class="chat-head">
+    <div><h2 id="chatTitulo">Asistente ElmenFrio</h2><p class="chat-modo" id="chatModo">DeepSeek</p></div>
+    <div class="chat-tools">
+      <button type="button" class="chat-ico" id="chatAjustesBtn" aria-controls="chatAjustes" aria-expanded="false" title="Clave de API y modelo" aria-label="Clave de API y modelo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      </button>
+      <button type="button" class="chat-ico" id="chatNueva" title="Nueva conversación" aria-label="Nueva conversación">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <button type="button" class="chat-ico" id="chatCerrar" title="Cerrar" aria-label="Cerrar el asistente">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </header>
+  <form class="chat-ajustes" id="chatAjustes" hidden>
+    <div id="ajNavegador" class="stack" style="gap:8px">
+      <label for="dsClave"><b>Clave de API de DeepSeek</b></label>
+      <input type="password" id="dsClave" autocomplete="off" spellcheck="false" placeholder="sk-…">
+      <label class="chk"><input type="checkbox" id="dsRecordar" checked> Recordarla en este navegador (no volver a pedirla)</label>
+    </div>
+    <p id="ajServidor" class="hint" hidden>La clave está configurada en el servidor (variable <span class="mono">DEEPSEEK_API_KEY</span>) y no pasa por el navegador.</p>
+    <label for="dsModelo"><b>Modelo</b></label>
+    <input type="text" id="dsModelo" spellcheck="false" value="deepseek-chat">
+    <div class="fila-btn"><button type="submit" class="btn-pri">Guardar</button><button type="button" class="btn-sec" id="dsBorrar">Borrar clave guardada</button></div>
+    <p class="hint">La clave queda solo en este navegador y se envía directo a DeepSeek. No la escriba en el código ni la suba a GitHub. Consígala en platform.deepseek.com.</p>
+    <p class="hint" id="ajEstado" role="status"></p>
+  </form>
+  <div class="chat-msgs" id="chatMsgs" aria-live="polite"></div>
+  <div class="chat-sug" id="chatSug"></div>
+  <p class="chat-aviso">Las preguntas y el escenario en pantalla se envían a DeepSeek. Verifique las respuestas: la decisión es del operador.</p>
+  <form class="chat-input" id="chatForm">
+    <textarea id="chatTxt" rows="1" placeholder="Pregunte sobre esta noche, la planta o la app…" aria-label="Mensaje para el asistente"></textarea>
+    <button type="submit" class="btn-pri" id="chatEnviar">Enviar</button>
+  </form>
+</section>
+
+<script src="modelo_elmenfrio.js"></script>
+<script>
+function iniciarElmenFrio(){
+"use strict";
+const M = window.MODELO_ELMENFRIO;
+const F = M.feats, K = M.k, LIM = M.limite;
+const META = {
+  soc_17_pct:      {lab:"SOC de la batería", u:"%", min:20, max:100, step:0.5, d:1},
+  pv_kwh_dia:      {lab:"Energía FV del día", u:"kWh", min:20, max:66, step:0.5, d:1},
+  t_amb_17_c:      {lab:"Temperatura ambiente", u:"°C", min:27, max:34, step:0.1, d:1},
+  hr_17_pct:       {lab:"Humedad relativa", u:"%", min:58, max:86, step:1, d:0},
+  captura_kg:      {lab:"Captura recibida hoy", u:"kg", min:0, max:900, step:5, d:0},
+  stock_kg:        {lab:"Inventario en congelación", u:"kg", min:0, max:1900, step:10, d:0},
+  t_camara_17_c:   {lab:"T de la cámara a las 17:00", u:"°C", min:-22, max:-2, step:0.1, d:1},
+  aperturas_puerta:{lab:"Aperturas de puerta hoy", u:"", min:0, max:65, step:1, d:0}
+};
+const PRESETS = [
+  {n:"Tarde típica de verano", s:"Sol pleno, faena normal", x:[98,58,30.6,68,120,700,-22,12], a:-22},
+  {n:"Nublado y captura grande", s:"Lluvias de octubre", x:[62,38,29.6,79,380,950,-20.6,28], a:-19.5},
+  {n:"Brisa fuerte, sin faena", s:"Alisios de febrero", x:[93,56,30.1,66,0,620,-22,6], a:-22},
+  {n:"Despacho y calor", s:"Martes, batería a media carga", x:[74,49,32.6,70,240,430,-21.4,36], a:-21}
+];
+const fmt = (v,d=1)=> v==null||isNaN(v) ? "—" : v.toLocaleString("es-CO",{minimumFractionDigits:d,maximumFractionDigits:d});
+const cop = v => "$ " + Math.round(v).toLocaleString("es-CO");
+const mcop = v => "$ " + (v/1e6).toLocaleString("es-CO",{minimumFractionDigits:1,maximumFractionDigits:1}) + " M";
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent, text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;if(parent)parent.appendChild(e);return e;}
+
+/* ---------- Motor k-NN (réplica de scikit-learn: imputación mediana → estandarización → KNeighborsRegressor) ---------- */
+const MEM = M.memoria.map(r=>({f:r[0], raw:r.slice(1,1+F.length), y:r[1+F.length]}));
+MEM.forEach(m=>{ m.z = m.raw.map((v,i)=>(v-M.media[i])/M.escala[i]); });
+function pct(sorted, q){ const p=(sorted.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p); return sorted[lo]+(sorted[hi]-sorted[lo])*(p-lo); }
+function knn(x){
+  const xi = x.map((v,i)=> (v==null||isNaN(v)) ? M.mediana[i] : v);
+  const z = xi.map((v,i)=>(v-M.media[i])/M.escala[i]);
+  const d = MEM.map((m,j)=>{let s=0;for(let i=0;i<z.length;i++){const t=z[i]-m.z[i];s+=t*t;}return [Math.sqrt(s),j];});
+  d.sort((a,b)=>a[0]-b[0]);
+  const nb = d.slice(0,K);
+  let w;
+  if(M.pesos==="distance"){ const zero = nb.some(n=>n[0]===0); w = nb.map(n=> zero ? (n[0]===0?1:0) : 1/n[0]); }
+  else w = nb.map(()=>1);
+  const sw = w.reduce((a,b)=>a+b,0); w = w.map(v=>v/sw);
+  const ys = nb.map(n=>MEM[n[1]].y);
+  const pred = ys.reduce((a,y,i)=>a+w[i]*y,0);
+  const prob = ys.reduce((a,y,i)=>a+w[i]*(y>LIM?1:0),0);
+  const s = ys.slice().sort((a,b)=>a-b);
+  const meanD = nb.reduce((a,n)=>a+n[0],0)/K;
+  return {pred, prob, p10:pct(s,.1), p90:pct(s,.9), vec:nb.map((n,i)=>({m:MEM[n[1]], d:n[0], w:w[i]})), meanD, xi};
+}
+
+/* ---------- Estado ---------- */
+const state = {x: PRESETS[1].x.slice(), anoche: PRESETS[1].a, src:"ejemplo", preset:0, motor:"local"};
+let serverOK = false;
+
+/* ---------- Construcción de controles ---------- */
+const fieldsBox = $("fields");
+F.forEach((f,i)=>{
+  const m = META[f];
+  const div = document.createElement("div"); div.className="field";
+  div.innerHTML = `<label for="f-${f}">${m.lab}</label><span class="val" id="v-${f}"></span>
+    <input type="range" id="f-${f}" min="${m.min}" max="${m.max}" step="${m.step}"><span class="na" id="na-${f}" hidden>Sin dato en el registro: el modelo usa la mediana del entrenamiento (${fmt(M.mediana[i],m.d)} ${m.u}).</span>`;
+  fieldsBox.appendChild(div);
+  div.querySelector("input").addEventListener("input", e=>{ state.x[i]=parseFloat(e.target.value); markManual(); update(); });
+});
+$("f-anoche").addEventListener("input", e=>{ state.anoche=parseFloat(e.target.value); markManual(); update(); });
+function markManual(){ if(state.src==="ejemplo"){ document.querySelectorAll("#src-ejemplo button").forEach(b=>b.setAttribute("aria-pressed","false")); } }
+function syncInputs(){
+  F.forEach((f,i)=>{ const m=META[f], v=state.x[i], miss = v==null||isNaN(v);
+    const inp=$("f-"+f); inp.value = miss ? M.mediana[i] : v;
+    $("v-"+f).textContent = miss ? "sin dato" : `${fmt(v,m.d)} ${m.u}`.trim();
+    $("na-"+f).hidden = !miss; });
+  $("f-anoche").value = state.anoche; $("v-anoche").textContent = `${fmt(state.anoche,1)} °C`;
+}
+
+// Ejemplos
+const pBox = $("src-ejemplo");
+PRESETS.forEach((p,i)=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", i===1?"true":"false");
+  b.innerHTML = `${p.n}<small>${p.s}</small>`;
+  b.addEventListener("click",()=>{ state.x=p.x.slice(); state.anoche=p.a; pBox.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); $("histReal").textContent=""; syncInputs(); update(); });
+  pBox.appendChild(b); });
+
+// Histórico (periodo de prueba)
+const sel = $("selHist");
+M.prueba.forEach((r,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent = `${r.f}  ·  SOC ${r.x[0]==null?"s/d":fmt(r.x[0],0)+" %"}  ·  captura ${r.x[4]==null?"s/d":fmt(r.x[4],0)+" kg"}`; sel.appendChild(o); });
+function loadHist(i){ const r=M.prueba[i]; state.x=r.x.map(v=>v==null?null:v); state.anoche=r.pe; syncInputs(); update();
+  $("histReal").innerHTML = `Lo que pasó realmente esa noche: <b class="mono">${fmt(r.y,1)} °C</b> ${r.y>LIM?'<span class="pill crit">⚠ excursión</span>':'<span class="pill ok">✓ dentro del límite</span>'}`; }
+sel.addEventListener("change",()=>loadHist(+sel.value));
+// pre-seleccionar una noche con excursión para la demo
+const demoIdx = Math.max(0, M.prueba.findIndex(r=>r.y>-10)); sel.value = demoIdx;
+
+// Archivo CSV
+let csvRows = [];
+$("fileCsv").addEventListener("change", e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const lines=String(rd.result).split(/\r?\n/).filter(l=>l.trim());
+    const sep = lines[0].includes(";") ? ";" : ",";
+    const hdr = lines[0].split(sep).map(h=>h.trim().toLowerCase());
+    const faltan = F.filter(f=>!hdr.includes(f));
+    if(faltan.length){ $("csvMsg").textContent = "Faltan columnas: " + faltan.join(", ") + ". Revise los encabezados."; $("selCsv").hidden=true; return; }
+    csvRows = lines.slice(1).map(l=>{ const c=l.split(sep); const g=n=>{const k=hdr.indexOf(n); if(k<0) return null; const v=parseFloat(String(c[k]).replace(",", ".")); return isNaN(v)?null:v;};
+      return {f: hdr.includes("fecha") ? c[hdr.indexOf("fecha")] : null, x:F.map(g), a:g("t_max_noche_anterior_c")}; });
+    const s=$("selCsv"); s.innerHTML=""; csvRows.forEach((r,i)=>{const o=document.createElement("option"); o.value=i; o.textContent=(r.f||("Fila "+(i+1))); s.appendChild(o);});
+    s.hidden = csvRows.length<2; $("csvMsg").textContent = `${csvRows.length} registro(s) leídos. Mostrando el ${csvRows.length>1?"seleccionado":"único"}.`;
+    applyCsv(0);
+  };
+  rd.readAsText(file);
+});
+$("selCsv").addEventListener("change", e=>applyCsv(+e.target.value));
+function applyCsv(i){ const r=csvRows[i]; if(!r) return; state.x=r.x; if(r.a!=null) state.anoche=r.a; syncInputs(); update(); }
+
+// Selector de origen
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{
+  state.src=b.dataset.src; document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+  ["ejemplo","historico","archivo","manual"].forEach(s=>$("src-"+s).hidden = s!==state.src);
+  if(state.src==="historico") loadHist(+sel.value);
+}));
+
+// Supuestos económicos
+["cDiesel","cExc"].forEach(id=>$(id).addEventListener("input",()=>{update(); renderEval();}));
+$("fUmbral").addEventListener("input",()=>{update(); renderEval();});
+function econ(){ return {C:Math.max(0,+$("cDiesel").value||0), L:Math.max(1,+$("cExc").value||1), U:+$("fUmbral").value}; }
+
+/* ---------- Termómetro ---------- */
+function drawTherm(r){
+  const s=$("therm"); s.innerHTML="";
+  const x0=20,x1=620,tmin=-24,tmax=8, X=t=>x0+(Math.min(tmax,Math.max(tmin,t))-tmin)/(tmax-tmin)*(x1-x0);
+  el("rect",{x:x0,y:38,width:X(LIM)-x0,height:16,rx:3,fill:"var(--ok-bg)",stroke:"var(--ok)","stroke-width":1},s);
+  el("rect",{x:X(LIM),y:38,width:x1-X(LIM),height:16,rx:3,fill:"var(--crit-bg)",stroke:"var(--crit)","stroke-width":1},s);
+  for(let t=-24;t<=8;t+=4){ el("line",{x1:X(t),x2:X(t),y1:56,y2:61,stroke:"var(--axis)"},s); el("text",{x:X(t),y:75,"text-anchor":"middle","font-size":11,fill:"var(--muted)"},s,(t>0?"+":"")+t+"°"); }
+  el("line",{x1:X(LIM),x2:X(LIM),y1:30,y2:62,stroke:"var(--crit)","stroke-width":2,"stroke-dasharray":"4 3"},s);
+  el("text",{x:X(LIM)+6,y:94,"font-size":11,fill:"var(--crit)","font-weight":600},s,"límite −18 °C");
+  el("text",{x:x0,y:94,"font-size":11,fill:"var(--muted)"},s,"consigna −22 °C");
+  el("rect",{x:X(r.p10),y:41,width:Math.max(3,X(r.p90)-X(r.p10)),height:10,rx:3,fill:"var(--accent)","fill-opacity":.35},s);
+  const xp=X(r.pred);
+  el("line",{x1:xp,x2:xp,y1:30,y2:62,stroke:"var(--ink)","stroke-width":3},s);
+  const lab = `${fmt(r.pred,1)} °C`; const anchor = xp>540?"end":(xp<80?"start":"middle");
+  el("text",{x:xp,y:22,"text-anchor":anchor,"font-size":13,"font-weight":700,fill:"var(--ink)"},s,"esperada " + lab);
+}
+
+/* ---------- Mapa de vecindad ---------- */
+function drawMapa(r){
+  const s=$("mapa"); s.innerHTML="";
+  const L=40,R=410,T=12,B=236, X=v=>L+(v-20)/80*(R-L), Y=v=>B-(Math.min(900,v))/900*(B-T);
+  for(let v=20;v<=100;v+=20){ el("line",{x1:X(v),x2:X(v),y1:T,y2:B,stroke:"var(--grid)"},s); el("text",{x:X(v),y:B+16,"text-anchor":"middle","font-size":10,fill:"var(--muted)"},s,v+"%"); }
+  for(let v=0;v<=900;v+=300){ el("line",{x1:L,x2:R,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},s); el("text",{x:L-6,y:Y(v)+3,"text-anchor":"end","font-size":10,fill:"var(--muted)"},s,v); }
+  el("text",{x:(L+R)/2,y:B+31,"text-anchor":"middle","font-size":11,fill:"var(--ink2)"},s,"SOC batería a las 17:00");
+  el("text",{x:12,y:(T+B)/2,"text-anchor":"middle","font-size":11,fill:"var(--ink2)",transform:`rotate(-90 12 ${(T+B)/2})`},s,"Captura (kg)");
+  const g=el("g",{},s);
+  MEM.forEach(m=>{ el("circle",{cx:X(m.raw[0]),cy:Y(m.raw[4]),r:2.4,fill:m.y>LIM?"var(--s2)":"var(--s1)","fill-opacity":.5},g); });
+  r.vec.forEach(v=>{ el("circle",{cx:X(v.m.raw[0]),cy:Y(v.m.raw[4]),r:7,fill:"none",stroke:"var(--accent)","stroke-width":2.2},s); });
+  el("circle",{cx:X(r.xi[0]),cy:Y(r.xi[4]),r:9,fill:"none",stroke:"var(--surface)","stroke-width":5},s);
+  el("circle",{cx:X(r.xi[0]),cy:Y(r.xi[4]),r:9,fill:"none",stroke:"var(--ink)","stroke-width":2.5},s);
+}
+
+/* ---------- Actualización principal ---------- */
+async function predictServer(x){
+  try{ const res = await fetch("api/predict",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({x})}); if(!res.ok) return null; return await res.json(); }catch(e){ return null; }
+}
+let updSeq = 0;
+async function update(){
+  const seq=++updSeq;
+  const r = knn(state.x);
+  if(serverOK){ const sv = await predictServer(state.x); if(seq!==updSeq) return; if(sv){ r.pred=sv.pred; r.prob=sv.prob; r.p10=sv.p10; r.p90=sv.p90; } }
+  render(r);
+}
+function render(r){
+  const {C,L,U} = econ();
+  $("vUmbral").textContent = fmt(U,2);
+  $("umbralHint").textContent = `Validado: ${fmt(M.umbral,2)} (minimiza el costo en validación). Punto de equilibrio teórico con estos costos: ${fmt(C/L,2)}.`;
+  $("oPred").innerHTML = `${fmt(r.pred,1)}<small>°C</small>`;
+  $("oBand").textContent = `Rango de las noches parecidas (P10–P90): ${fmt(r.p10,1)} a ${fmt(r.p90,1)} °C`;
+  $("oProb").textContent = `${fmt(r.prob*100,0)} %`;
+  $("oProbTxt").textContent = `Peso de las noches parecidas que pasaron el límite (${r.vec.filter(v=>v.m.y>LIM).length} de ${K})`;
+  const ratio = r.meanD / M.dist_p95;
+  const conf = ratio<=0.5?["Alta","ok"]:ratio<=1?["Media","warn"]:["Baja","crit"];
+  $("oConf").innerHTML = `<span class="pill ${conf[1]}" style="font-size:1.1rem;padding:4px 12px">${conf[1]==="ok"?"✓":conf[1]==="warn"?"●":"⚠"} ${conf[0]}</span>`;
+  $("oConfTxt").textContent = conf[1]==="crit" ? "Situación poco vista: los vecinos están lejos. Decida con criterio propio y registre el caso." : `Distancia media a los vecinos ${fmt(r.meanD,2)} (alerta desde ${fmt(M.dist_p95,2)}).`;
+  drawTherm(r);
+  // Decisión
+  const dec=$("dec"), eNo=r.prob*L;
+  let cls,title,why,acts,icon;
+  if(r.prob>=U){ cls="crit"; icon="⚡"; title="Encender el grupo diésel esta noche (18:00–06:00)";
+    why=`La probabilidad de excursión (${fmt(r.prob*100,0)} %) supera el umbral de ${fmt(U*100,0)} %. El costo esperado de no hacerlo (${cop(eNo)}) es mayor que el de encender (${cop(C)}).`;
+    acts=["Verificar al menos 10 galones de ACPM y arrancar el grupo a las 18:00.","No recibir más producto para congelar hoy; el excedente va a la cámara de refrigeración con hielo.","Mantener la puerta de congelación cerrada hasta las 06:00.", r.xi[0]<60?"Revisar mañana la limpieza de paneles: el SOC bajo puede venir de salitre acumulado.":"Registrar en la bitácora la temperatura de las 23:00 y las 05:00."]; }
+  else if(r.prob>=U/2){ cls="warn"; icon="●"; title="No encender todavía · vigilancia reforzada";
+    why=`Riesgo intermedio (${fmt(r.prob*100,0)} %). El costo esperado (${cop(eNo)}) aún no justifica el diésel (${cop(C)}), pero conviene un punto de control.`;
+    acts=["A las 22:00 revisar: si el SOC baja de 35 % o la cámara pasa de −20 °C, encender el grupo.","Dejar el grupo listo (combustible y llave) por si hay que arrancarlo.","Evitar aperturas de puerta después de las 18:00."]; }
+  else { cls="ok"; icon="✓"; title="No encender el diésel · operación normal";
+    why=`Las noches parecidas se mantuvieron frías: probabilidad ${fmt(r.prob*100,0)} %. Encender costaría ${cop(C)} sin necesidad.`;
+    acts=["Operar con batería e inercia térmica.","Registrar la temperatura máxima de la noche para seguir alimentando el modelo."]; }
+  dec.className="decision "+cls; $("decIco").textContent=icon; $("decIco").style.fontSize="1.6rem";
+  $("decTitle").textContent=title; $("decWhy").textContent=why; $("decActs").innerHTML=acts.map(a=>`<li>${a}</li>`).join("");
+  $("eNo").textContent=cop(eNo); $("eSi").textContent=cop(C);
+  const persOn = state.anoche>LIM;
+  $("ePers").innerHTML = persOn?'<span class="pill crit">Encender</span>':'<span class="pill ok">No encender</span>';
+  $("ePersTxt").textContent = `porque anoche la cámara llegó a ${fmt(state.anoche,1)} °C`;
+  // Vecinos
+  $("kTxt").textContent=K;
+  $("tblVec").querySelector("tbody").innerHTML = r.vec.map(v=>`<tr><td>${v.m.f}</td><td>${fmt(v.w*100,0)} %</td><td>${fmt(v.m.raw[0],0)}</td><td>${fmt(v.m.raw[1],0)}</td><td>${fmt(v.m.raw[4],0)}</td><td>${fmt(v.m.raw[5],0)}</td><td>${fmt(v.m.raw[6],1)}</td><td>${fmt(v.m.y,1)} °C</td><td>${v.m.y>LIM?'<span class="pill crit">⚠ excursión</span>':'<span class="pill ok">✓ ok</span>'}</td></tr>`).join("");
+  drawMapa(r);
+}
+
+/* ---------- Evaluación (recalculada con los supuestos económicos) ---------- */
+function politicas(){
+  const {C,L,U}=econ(); const P=M.prueba;
+  const defs=[["Nunca encender diésel",r=>false,"var(--sg)"],["Siempre encender diésel",r=>true,"var(--sg)"],["Persistencia",r=>r.pe>LIM,"var(--s2)"],["k-NN ElmenFrio",r=>r.pr>=U,"var(--s1)"],["Oráculo (conoce el futuro)",r=>r.y>LIM,"var(--s3)"]];
+  return defs.map(([n,fn,col])=>{ let cost=0,on=0,miss=0; const cum=[];
+    P.forEach(r=>{ const e=fn(r), ex=r.y>LIM; if(e){on++;cost+=C;} else if(ex){miss++;cost+=L;} cum.push(cost); });
+    return {n,cost,on,miss,cum,col}; });
+}
+function renderEval(){
+  const pm=M.metricas, pol=politicas(), P=M.prueba;
+  const pers=pol[2], kn=pol[3];
+  // línea de tiempo
+  const pa=pm.particion;
+  $("timeline").innerHTML = [["Entrenamiento",pa.entrenamiento,"var(--accent)"],["Validación",pa.validacion,"var(--sand)"],["Prueba",pa.prueba,"var(--ink)"]]
+    .map(([n,p,c])=>`<div style="flex:${p[2]};background:${c};color:var(--surface)" title="${p[0]} a ${p[1]}">${n} · ${p[2]} noches</div>`).join("");
+  // KPIs
+  const ahorro = pers.cost-kn.cost;
+  $("kpis").innerHTML = `
+   <div class="kpi"><span class="lbl">Ahorro vs. persistencia</span><div class="big num">${mcop(ahorro)}</div><p class="sub">en ${P.length} noches de prueba (${fmt(ahorro/pers.cost*100,0)} % menos)</p></div>
+   <div class="kpi"><span class="lbl">Error medio (MAE)</span><div class="big num">${fmt(pm.mae_test_knn,2)} °C</div><p class="sub">persistencia: <b>${fmt(pm.mae_test_persistencia,2)} °C</b></p></div>
+   <div class="kpi"><span class="lbl">Excursiones no evitadas</span><div class="big num">${kn.miss} <small style="font-size:1rem;color:var(--ink2)">de ${pol[4].on}</small></div><p class="sub">persistencia deja pasar <b>${pers.miss}</b></p></div>
+   <div class="kpi"><span class="lbl">Noches con diésel</span><div class="big num">${kn.on}</div><p class="sub">siempre encender: <b>${P.length}</b> · oráculo: <b>${pol[4].on}</b></p></div>`;
+  // barras
+  const s=$("barras"); s.innerHTML=""; const L0=58,R0=510,T0=14,B0=222, mx=Math.max(...pol.map(p=>p.cost))*1.12||1;
+  const Y=v=>B0-v/mx*(B0-T0), bw=(R0-L0)/pol.length;
+  const step = mx>60e6?20e6:mx>20e6?10e6:5e6;
+  for(let v=0; v<=mx; v+=step){ el("line",{x1:L0,x2:R0,y1:Y(v),y2:Y(v),stroke:"var(--grid)"},s); el("text",{x:L0-6,y:Y(v)+4,"text-anchor":"end","font-size":11,fill:"var(--muted)"},s,(v/1e6)+" M"); }
+  el("line",{x1:L0,x2:R0,y1:B0,y2:B0,stroke:"var(--axis)"},s);
+  const short=["Nunca","Siempre","Persistencia","k-NN","Oráculo"];
+  pol.forEach((p,i)=>{ const x=L0+i*bw+bw*.2, w=bw*.6, y=Y(p.cost), h=B0-y;
+    el("path",{d:`M${x} ${B0}V${y+4}a4 4 0 0 1 4 -4h${w-8}a4 4 0 0 1 4 4V${B0}z`,fill:p.col},s);
+    el("text",{x:x+w/2,y:y-6,"text-anchor":"middle","font-size":11,"font-weight":600,fill:"var(--ink)"},s,mcop(p.cost).replace("$ ",""));
+    el("text",{x:x+w/2,y:B0+16,"text-anchor":"middle","font-size":11,fill:"var(--ink2)"},s,short[i]);
+    const hit=el("rect",{x:L0+i*bw,y:T0,width:bw,height:B0-T0,fill:"transparent"},s);
+    hit.addEventListener("mousemove",ev=>tip("barTip",s,ev,`<b>${p.n}</b><br>${cop(p.cost)} · ${p.on} noches con diésel · ${p.miss} excursiones`));
+    hit.addEventListener("mouseleave",()=>$("barTip").style.opacity=0);
+  });
+  $("barSub").textContent = `${P.length} noches entre ${pa.prueba[0]} y ${pa.prueba[1]}. Diésel ${cop(econ().C)}/noche; pérdida ${cop(econ().L)} por excursión.`;
+  // acumulado
+  const a=$("acum"); a.innerHTML=""; const L1=58,R1=510,T1=10,B1=206, my=Math.max(pers.cum.at(-1),kn.cum.at(-1),pol[4].cum.at(-1))*1.08||1;
+  const X1=i=>L1+i/(P.length-1)*(R1-L1), Y1=v=>B1-v/my*(B1-T1);
+  const st = my>60e6?20e6:my>20e6?10e6:5e6;
+  for(let v=0; v<=my; v+=st){ el("line",{x1:L1,x2:R1,y1:Y1(v),y2:Y1(v),stroke:"var(--grid)"},a); el("text",{x:L1-6,y:Y1(v)+4,"text-anchor":"end","font-size":11,fill:"var(--muted)"},a,(v/1e6)+" M"); }
+  let lastM="";
+  P.forEach((r,i)=>{ const mth=r.f.slice(0,7); if(mth!==lastM && ["03","05","07","09","11"].includes(r.f.slice(5,7))){ el("text",{x:X1(i),y:B1+16,"text-anchor":"start","font-size":10,fill:"var(--muted)"},a,r.f.slice(5,7)+"/"+r.f.slice(2,4)); } lastM=mth; });
+  el("line",{x1:L1,x2:R1,y1:B1,y2:B1,stroke:"var(--axis)"},a);
+  [pers,kn,pol[4]].forEach(p=>{ el("path",{d:p.cum.map((v,i)=>(i?"L":"M")+X1(i).toFixed(1)+" "+Y1(v).toFixed(1)).join(""),fill:"none",stroke:p.col,"stroke-width":2,"stroke-linejoin":"round"},a); });
+  const cross=el("line",{x1:0,x2:0,y1:T1,y2:B1,stroke:"var(--muted)","stroke-dasharray":"3 3",opacity:0},a);
+  const hit=el("rect",{x:L1,y:T1,width:R1-L1,height:B1-T1,fill:"transparent"},a);
+  hit.addEventListener("mousemove",ev=>{ const pt=svgPt(a,ev); const i=Math.max(0,Math.min(P.length-1,Math.round((pt.x-L1)/(R1-L1)*(P.length-1))));
+    cross.setAttribute("x1",X1(i)); cross.setAttribute("x2",X1(i)); cross.setAttribute("opacity",1);
+    tip("acumTip",a,ev,`<b>${P[i].f}</b><br>Persistencia ${mcop(pers.cum[i])}<br>k-NN ${mcop(kn.cum[i])}<br>Oráculo ${mcop(pol[4].cum[i])}`); });
+  hit.addEventListener("mouseleave",()=>{ $("acumTip").style.opacity=0; cross.setAttribute("opacity",0); });
+  // tabla políticas
+  $("tblPol").querySelector("tbody").innerHTML = pol.map(p=>`<tr><td class="txt">${p.n}</td><td>${p.on}</td><td>${p.miss}</td><td>${cop(p.cost)}</td><td>${p===pers?"—":(p.cost<=pers.cost?"−":"+")+fmt(Math.abs(p.cost-pers.cost)/pers.cost*100,0)+" %"}</td></tr>`).join("");
+  const ck=pm.clasif_knn, cp=pm.clasif_persistencia;
+  $("tblMet").querySelector("tbody").innerHTML = [
+    ["MAE T máx. nocturna (°C)", fmt(pm.mae_test_persistencia,2), fmt(pm.mae_test_knn,2), "Error promedio de la temperatura estimada"],
+    ["Excursiones detectadas (recall)", fmt(cp.recall*100,0)+" %", fmt(ck.recall*100,0)+" %", "Con el umbral validado de "+fmt(pm.umbral,2)],
+    ["Alertas correctas (precisión)", fmt(cp.precision*100,0)+" %", fmt(ck.precision*100,0)+" %", "Noches con diésel que sí lo necesitaban"],
+    ["AUC de la probabilidad", "—", fmt(pm.auc_test_knn,3), "1 = separa perfecto noches buenas y malas"],
+    ["Cobertura banda P10–P90", "—", fmt(pm.cobertura_p10_p90*100,0)+" %", "Ideal ≈ 80 %"]
+  ].map(r=>`<tr><td class="txt">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td class="txt">${r[3]}</td></tr>`).join("");
+  // confiabilidad (transparencia)
+  $("confList").innerHTML = `
+    <li>En 285 noches que nunca vio (mar–dic 2025) se equivocó en promedio <b>${fmt(pm.mae_test_knn,2)} °C</b>; la persistencia, <b>${fmt(pm.mae_test_persistencia,2)} °C</b>.</li>
+    <li>Detectó <b>${ck.tp} de ${ck.tp+ck.fn}</b> noches con excursión; dio <b>${ck.fp}</b> falsas alarmas (diésel encendido sin necesidad).</li>
+    <li>Con los costos supuestos, la política k-NN costó <b>${mcop(pm.politicas[3].costo_cop)}</b> frente a <b>${mcop(pm.politicas[2].costo_cop)}</b> de la persistencia y <b>${mcop(pm.politicas[1].costo_cop)}</b> de encender siempre.</li>
+    <li>Configuración elegida en validación: <b>k = ${K}</b>, vecinos ponderados por distancia, umbral <b>${fmt(pm.umbral,2)}</b>.</li>`;
+}
+function svgPt(svg,ev){ const p=svg.createSVGPoint(); p.x=ev.clientX; p.y=ev.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+function tip(id,svg,ev,html){ const t=$(id), box=svg.parentElement.getBoundingClientRect(); t.innerHTML=html; t.style.left=(ev.clientX-box.left)+"px"; t.style.top=(ev.clientY-box.top)+"px"; t.style.opacity=1; }
+
+/* ---------- Pestañas ---------- */
+const tabs=[...document.querySelectorAll('nav.tabs button')];
+function showTab(id){ tabs.forEach(t=>{ const on=t.getAttribute("aria-controls")===id; t.setAttribute("aria-selected",on); $(t.getAttribute("aria-controls")).hidden=!on; }); try{localStorage.setItem("elmenfrio_tab",id);}catch(e){} }
+tabs.forEach(t=>t.addEventListener("click",()=>showTab(t.getAttribute("aria-controls"))));
+tabs.forEach((t,i)=>t.addEventListener("keydown",e=>{ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ const n=tabs[(i+(e.key==="ArrowRight"?1:tabs.length-1))%tabs.length]; n.focus(); n.click(); }}));
+let startTab="operar"; const h=(location.hash||"").slice(1); if(["operar","eval","transp","planta"].includes(h)) startTab=h; else { try{ const s=localStorage.getItem("elmenfrio_tab"); if(s && $(s)) startTab=s; }catch(e){} }
+showTab(startTab);
+
+/* ---------- Arranque ---------- */
+syncInputs(); update(); renderEval();
+if(location.protocol.startsWith("http") && !location.hostname.endsWith("github.io")){  // GitHub Pages no ejecuta servidor.py
+  fetch("api/salud").then(r=>r.ok?r.json():null).then(j=>{ if(j&&j.ok){ serverOK=true; $("motorTxt").textContent="Modelo scikit-learn (servidor)"; update(); } }).catch(()=>{});
+}
+/* ---------- Contexto para el asistente: escenario, salida y decisión que se ven en pantalla ---------- */
+function contextoActual(){
+  const {C,L,U} = econ();
+  const t = id => ($(id)?.textContent || "").replace(/\s+/g," ").trim();
+  const lect = F.map((f,i)=>{ const m=META[f], v=state.x[i];
+    return `- ${m.lab}: ${v==null||isNaN(v) ? "sin dato (se usa la mediana del entrenamiento)" : `${fmt(v,m.d)} ${m.u}`.trim()}`; }).join("\n");
+  const acciones = [...document.querySelectorAll("#decActs li")].map(li=>li.textContent).join(" | ");
+  const vecinos = [...document.querySelectorAll("#tblVec tbody tr")].map(tr=>"- "+[...tr.cells].map(c=>c.textContent.trim()).join(" · ")).join("\n");
+  return `Escenario cargado en la app (lecturas de las 17:00):\n${lect}\n- T máxima de la cámara anoche: ${fmt(state.anoche,1)} °C\n\n`+
+    `Salida del modelo:\n- T máxima esperada esta noche: ${t("oPred")} (${t("oBand")})\n- Probabilidad de pasar de −18 °C: ${t("oProb")} (${t("oProbTxt")})\n- Confiabilidad del parecido: ${t("oConf")} (${t("oConfTxt")})\n\n`+
+    `Decisión mostrada: ${t("decTitle")}. ${t("decWhy")}\nAcciones sugeridas: ${acciones}\nCosto esperado si no enciende: ${t("eNo")}; si enciende: ${t("eSi")}. La persistencia diría: ${t("ePers")} (${t("ePersTxt")}).\n\n`+
+    `Noches parecidas usadas (Fecha · Peso · SOC % · FV kWh · Captura kg · Stock kg · T cámara 17h · T máx. noche · Resultado):\n${vecinos}\n\n`+
+    `Supuestos económicos actuales: diésel ${cop(C)} por noche; pérdida por excursión ${cop(L)}; umbral de decisión ${fmt(U,2)}.`;
+}
+window.ElmenFrio = {knn, contexto: contextoActual};  // knn: pruebas de paridad
+}
+
+/* ---------- Carga del modelo ----------
+   modelo_elmenfrio.js debe estar junto a index.html. Si index.html se publicó en la raíz del
+   repositorio (p. ej. GitHub Pages) y el modelo quedó en app/, se intenta esa ruta; si no aparece,
+   se avisa en pantalla en vez de dejar los botones sin responder. */
+(function cargarModelo(rutas){
+  if(window.MODELO_ELMENFRIO) return iniciarElmenFrio();
+  if(!rutas.length) return avisarSinModelo();
+  const s = document.createElement("script");
+  s.src = rutas[0];
+  s.onload = s.onerror = () => cargarModelo(rutas.slice(1));
+  document.head.appendChild(s);
+})(["app/modelo_elmenfrio.js"]);
+function avisarSinModelo(){
+  document.getElementById("motorTxt").textContent = "Modelo no cargado";
+  document.querySelector("#motorChip .dot").style.background = "var(--crit)";
+  const n = document.createElement("div");
+  n.className = "note crit"; n.setAttribute("role","alert"); n.style.margin = "16px 0";
+  n.innerHTML = '<b>No se encontró el archivo <span class="mono">modelo_elmenfrio.js</span>.</b> Súbalo a la misma carpeta que <span class="mono">index.html</span> (con el nombre exacto, en minúsculas) y recargue la página. Sin él, los botones no pueden calcular nada.';
+  document.querySelector("nav.tabs").after(n);
+}
+</script>
+<script>
+/* ---------- Asistente con DeepSeek ----------
+   Dos modos. Servidor: si servidor.py tiene DEEPSEEK_API_KEY, se usa /api/chat y la clave nunca llega
+   al navegador. Navegador (GitHub Pages o archivo local): cada persona escribe su clave una vez y queda
+   guardada solo en su navegador. La clave nunca va escrita en el código. */
+(function(){
+"use strict";
+const URL_DEEPSEEK = "https://api.deepseek.com/chat/completions";
+const K_CLAVE = "elmenfrio_deepseek_clave", K_MODELO = "elmenfrio_deepseek_modelo";
+const $ = id => document.getElementById(id);
+const panel=$("chat"), fab=$("chatAbrir"), msgs=$("chatMsgs"), txt=$("chatTxt"), btnEnviar=$("chatEnviar"), ajustes=$("chatAjustes");
+const SUGERENCIAS = ["¿Por qué recomienda esto para esta noche?", "¿Qué pasa si la batería baja de 60 %?", "¿Cómo cargo un archivo CSV del datalogger?", "¿Qué ventajas tiene en la Alta Guajira?"];
+
+const SISTEMA = `Eres el asistente de ElmenFrio, una aplicación web de aprendizaje automático (k vecinos más cercanos) para la planta comunitaria de frío solar de pescado y mariscos de Cabo de la Vela (Uribia, Alta Guajira, Colombia). Ayudas al operador de la planta y a quien evalúa el proyecto.
+
+Responde siempre en español, claro y breve (máximo 6 a 8 frases o una lista corta), con lenguaje sencillo para un operador. Usa los datos del contexto; si algo no está ahí, dilo en vez de inventarlo. La decisión final es del operador: no prometas que no habrá pérdidas. Cuando sea pertinente, recuerda que los datos del modelo son simulados y que debe reentrenarse con el datalogger real.
+
+Lo que sabes:
+- Decisión: cada día a las 17:00, ¿encender el grupo diésel de 18:00 a 06:00 o confiar en la batería y la inercia térmica? Encender cuesta ~$120.000 COP por noche (supuesto editable); una noche con excursión cuesta ~$1.500.000 COP.
+- Planta: FV de 13 kWp (el salitre le quita hasta 12 %, limpieza cada ~15 días); batería LiFePO4 de 40 kWh, el BMS corta el frío con SOC ≤ 20 % (32 kWh útiles); cámara de congelación de ≈40 m³ a −22 °C para langosta, camarón y pulpo, límite −18 °C; equipo de frío de 6 kW térmicos, COP 1,55 a 30 °C (baja 0,035 por °C, mínimo 0,9); cámara de refrigeración 0–4 °C (≈0,45 kW); máquina de hielo de 3 kW solo con excedente solar (10–14 h, SOC > 85 %).
+- Enfriamiento: por paredes entran ≈1,5 kW; cada kg de captura nueva trae 83 Wh (380 kg ≈ 32 kWh); cada apertura de puerta ≈0,22 kWh; inercia 1,6 kWh/K más el producto. Sin frío la cámara pasa de −22 a −18 °C en ≈5 h (estimación). Excursión = la temperatura máxima entre 17:00 y 07:00 supera −18 °C.
+- Rutina: la captura llega de 14 a 16 h; despachos a Riohacha y Maicao martes y viernes a las 10 h (sale la mitad del inventario).
+- Modelo: 8 lecturas a las 17:00 (SOC, energía FV del día, temperatura y humedad ambiente, captura, inventario, temperatura de la cámara, aperturas de puerta); busca las 5 noches más parecidas entre 1.136 (ponderadas por distancia) y entrega temperatura máxima esperada, banda P10–P90, probabilidad de excursión y confiabilidad (Alta/Media/Baja según la distancia a los vecinos). Lo que más pesa es el SOC de las 17:00 (por debajo de ~60 % casi siempre hubo excursión); luego la captura del día.
+- Semáforo: rojo si la probabilidad ≥ umbral (0,17 validado): encender el diésel, tener al menos 10 galones de ACPM, no recibir más producto para congelar y mantener la puerta cerrada hasta las 06:00. Amarillo si ≥ la mitad del umbral: no encender aún, revisar a las 22:00 y encender si el SOC baja de 35 % o la cámara pasa de −20 °C. Verde: operación normal.
+- Resultados en 285 noches de prueba (mar–dic 2025): k-NN $16,5 M frente a persistencia $55,0 M (−70 %), siempre encender $34,2 M, nunca encender $124,5 M, oráculo $10,0 M; detectó 80 de 83 excursiones; error medio 0,61 °C frente a 2,26 °C; AUC 0,976.
+- Uso de la app: pestañas Operar esta noche, Evaluación del modelo, Transparencia y La planta. Datos por Ejemplos, Histórico, Archivo CSV (columnas soc_17_pct, pv_kwh_dia, t_amb_17_c, hr_17_pct, captura_kg, stock_kg, t_camara_17_c, aperturas_puerta) o Manual. Funciona sin internet abriendo app/index.html; servidor.py usa el modelo de scikit-learn.
+- Ventajas en la Alta Guajira: aprovecha ≈5,9 kWh/m² al día de sol; ahorra ACPM, que es caro de llevar a Cabo de la Vela; funciona sin señal; reduce la pérdida de producto de los pescadores artesanales; menos ruido, humo y CO₂; capta el efecto de los alisios, las lluvias y el salitre.
+- Límites: datos simulados; k-NN no extrapola; correlación, no causa; solo modela la cámara de congelación; supone que el generador no falla; hay deriva (2025 tuvo 29 % de noches críticas frente a ≈17 %), conviene reentrenar cada trimestre.`;
+
+let modo = "navegador";            // "servidor" si servidor.py tiene la clave
+let historial = [];                // mensajes {role, content} sin los de sistema
+let enCurso = null;                // AbortController de la respuesta en curso
+
+/* Clave guardada una sola vez: localStorage si se pidió recordarla, si no solo en esta pestaña.
+   Si el navegador bloquea el almacenamiento, se usa la memoria de la página. */
+const almacen = {
+  leer(k){ try{ return localStorage.getItem(k) || sessionStorage.getItem(k) || ""; }catch(e){ return ""; } },
+  guardar(k, v, recordar){ try{ if(recordar){ localStorage.setItem(k, v); sessionStorage.removeItem(k); } else { sessionStorage.setItem(k, v); localStorage.removeItem(k); } }catch(e){} },
+  borrar(k){ try{ localStorage.removeItem(k); sessionStorage.removeItem(k); }catch(e){} }
+};
+let clave = almacen.leer(K_CLAVE);
+let modelo = almacen.leer(K_MODELO) || "deepseek-chat";
+$("dsModelo").value = modelo;
+
+/* ---------- Mensajes ---------- */
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const enLinea = s => s.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
+function md(texto){   // Markdown mínimo y seguro: se escapa todo antes de dar formato
+  let html = "", lista = false;
+  for(const linea of esc(texto).split("\n")){
+    const li = linea.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/);
+    if(li){ if(!lista){ html += "<ul>"; lista = true; } html += `<li>${enLinea(li[1])}</li>`; continue; }
+    if(lista){ html += "</ul>"; lista = false; }
+    if(!linea.trim()) continue;
+    const h = linea.match(/^#{1,6}\s+(.*)/);
+    html += h ? `<p><b>${enLinea(h[1])}</b></p>` : `<p>${enLinea(linea)}</p>`;
+  }
+  return html + (lista ? "</ul>" : "");
+}
+function agregar(tipo, texto){
+  const d = document.createElement("div");
+  d.className = "msg " + tipo;
+  if(tipo === "yo") d.textContent = texto; else d.innerHTML = md(texto);
+  msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+  return d;
+}
+function bienvenida(){
+  agregar("bot", "Hola. Soy el asistente de ElmenFrio. Puedo explicar la recomendación de esta noche, las condiciones de la cámara de congelación o cómo usar la app.");
+  const sug = $("chatSug"); sug.innerHTML = "";
+  SUGERENCIAS.forEach(s=>{ const b=document.createElement("button"); b.type="button"; b.textContent=s; b.addEventListener("click",()=>preguntar(s)); sug.appendChild(b); });
+}
+
+/* ---------- Estado y ajustes ---------- */
+function actualizarModo(){
+  $("chatModo").textContent = modo === "servidor" ? `${modelo} · clave en el servidor` : clave ? `${modelo} · clave guardada en este navegador` : "Falta la clave de API de DeepSeek";
+  $("ajNavegador").hidden = modo === "servidor";
+  $("ajServidor").hidden = modo !== "servidor";
+  $("dsBorrar").hidden = modo === "servidor" || !clave;
+  $("dsClave").placeholder = clave ? "Clave guardada (escriba otra para cambiarla)" : "sk-…";
+}
+function mostrarAjustes(si){
+  ajustes.hidden = !si; $("chatAjustesBtn").setAttribute("aria-expanded", String(si));
+  if(si){ $("ajEstado").textContent = ""; (modo === "navegador" ? $("dsClave") : $("dsModelo")).focus(); }
+}
+$("chatAjustesBtn").addEventListener("click", ()=>mostrarAjustes(ajustes.hidden));
+ajustes.addEventListener("submit", e=>{
+  e.preventDefault();
+  const nueva = $("dsClave").value.trim();
+  if(nueva){ clave = nueva; almacen.guardar(K_CLAVE, clave, $("dsRecordar").checked); }
+  modelo = $("dsModelo").value.trim() || "deepseek-chat"; $("dsModelo").value = modelo;
+  try{ localStorage.setItem(K_MODELO, modelo); }catch(err){}
+  $("dsClave").value = "";
+  actualizarModo();
+  if(modo === "navegador" && !clave){ $("ajEstado").textContent = "Escriba la clave para poder usar el asistente."; return; }
+  $("ajEstado").textContent = $("dsRecordar").checked || modo === "servidor" ? "Guardado. No tendrá que volver a escribir la clave en este navegador." : "Guardado solo para esta pestaña.";
+  setTimeout(()=>{ mostrarAjustes(false); txt.focus(); }, 900);
+});
+$("dsBorrar").addEventListener("click", ()=>{
+  clave = ""; almacen.borrar(K_CLAVE); actualizarModo();
+  $("ajEstado").textContent = "Clave borrada de este navegador.";
+});
+
+/* ---------- Abrir y cerrar ---------- */
+function abrir(){
+  panel.hidden = false; fab.hidden = true; fab.setAttribute("aria-expanded","true");
+  if(!msgs.children.length) bienvenida();
+  if(modo === "navegador" && !clave) mostrarAjustes(true); else txt.focus();
+}
+function cerrar(){ panel.hidden = true; fab.hidden = false; fab.setAttribute("aria-expanded","false"); fab.focus(); }
+fab.addEventListener("click", abrir);
+$("chatCerrar").addEventListener("click", cerrar);
+panel.addEventListener("keydown", e=>{ if(e.key === "Escape") cerrar(); });
+$("chatNueva").addEventListener("click", ()=>{ if(enCurso) enCurso.abort(); historial = []; msgs.innerHTML = ""; bienvenida(); txt.focus(); });
+
+/* ---------- Conversación ---------- */
+function mensajes(){
+  let ctx;
+  try{ ctx = window.ElmenFrio && window.ElmenFrio.contexto ? window.ElmenFrio.contexto() : ""; }catch(e){ ctx = ""; }
+  return [
+    {role:"system", content: SISTEMA},
+    {role:"system", content: ctx ? "Estado actual de la app (se actualiza con cada pregunta):\n" + ctx : "El modelo no se cargó en esta página, así que no hay escenario disponible; responde con el conocimiento general."},
+    ...historial.slice(-12)
+  ];
+}
+function pedir(signal){
+  const cuerpo = JSON.stringify({model: modelo, messages: mensajes(), stream: true, temperature: 0.4, max_tokens: 900});
+  if(modo === "servidor") return fetch("api/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body: cuerpo, signal});
+  return fetch(URL_DEEPSEEK, {method:"POST", headers:{"Content-Type":"application/json", "Authorization":"Bearer " + clave}, body: cuerpo, signal});
+}
+async function* leerSSE(resp){   // flujo "data: {...}" compatible con OpenAI
+  const lector = resp.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  for(;;){
+    const {value, done} = await lector.read();
+    if(done) return;
+    buf += dec.decode(value, {stream:true});
+    let i;
+    while((i = buf.indexOf("\n")) >= 0){
+      const linea = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if(!linea.startsWith("data:")) continue;
+      const dato = linea.slice(5).trim();
+      if(dato === "[DONE]") return;
+      try{ const t = JSON.parse(dato).choices?.[0]?.delta?.content; if(t) yield t; }catch(e){}
+    }
+  }
+}
+async function textoError(resp){
+  let det = "";
+  try{ const j = await resp.json(); det = (j.error && (j.error.message || j.error)) || j.message || ""; }catch(e){}
+  const base = {400:"La solicitud no es válida", 401:"La clave de API no es válida", 402:"La cuenta de DeepSeek no tiene saldo", 422:"Parámetros no válidos (revise el nombre del modelo)", 429:"Demasiadas solicitudes; espere un momento", 500:"Error en el servidor de DeepSeek", 503:"DeepSeek no está disponible en este momento"}[resp.status] || ("Error " + resp.status);
+  return base + (typeof det === "string" && det ? ": " + det : ".");
+}
+function enviando(si){
+  btnEnviar.textContent = si ? "Detener" : "Enviar";
+  btnEnviar.classList.toggle("btn-sec", si); btnEnviar.classList.toggle("btn-pri", !si);
+}
+async function preguntar(texto){
+  texto = (texto || "").trim();
+  if(!texto || enCurso) return;
+  if(modo === "navegador" && !clave){ mostrarAjustes(true); $("ajEstado").textContent = "Primero escriba su clave de API de DeepSeek."; return; }
+  $("chatSug").innerHTML = "";
+  agregar("yo", texto); historial.push({role:"user", content: texto});
+  txt.value = ""; ajustarAltura();
+  const burbuja = agregar("bot", ""); burbuja.classList.add("pensando");
+  enCurso = new AbortController(); enviando(true);
+  let respuesta = "";
+  try{
+    const resp = await pedir(enCurso.signal);
+    if(!resp.ok){ if(resp.status === 401 && modo === "navegador") mostrarAjustes(true); throw new Error(await textoError(resp)); }
+    for await (const trozo of leerSSE(resp)){
+      respuesta += trozo; burbuja.classList.remove("pensando"); burbuja.innerHTML = md(respuesta);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+    if(!respuesta) throw new Error("DeepSeek no devolvió texto. Intente de nuevo.");
+  }catch(e){
+    if(e.name !== "AbortError" && !respuesta){
+      agregar("err", e instanceof TypeError ? "No se pudo conectar con DeepSeek. Revise la conexión a internet e intente de nuevo." : e.message);
+    }
+  }finally{
+    burbuja.classList.remove("pensando");
+    if(respuesta) historial.push({role:"assistant", content: respuesta});
+    else { burbuja.remove(); historial.pop(); }
+    enCurso = null; enviando(false);
+  }
+}
+function ajustarAltura(){ txt.style.height = "auto"; txt.style.height = Math.min(txt.scrollHeight, 120) + "px"; }
+txt.addEventListener("input", ajustarAltura);
+txt.addEventListener("keydown", e=>{ if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); preguntar(txt.value); } });
+$("chatForm").addEventListener("submit", e=>{ e.preventDefault(); if(enCurso) enCurso.abort(); else preguntar(txt.value); });
+
+/* ¿El servidor tiene la clave? (no aplica en GitHub Pages ni al abrir el archivo directamente) */
+actualizarModo();
+if(location.protocol.startsWith("http") && !location.hostname.endsWith("github.io")){
+  fetch("api/chat/estado").then(r=>r.ok ? r.json() : null).then(j=>{ if(j && j.disponible){ modo = "servidor"; actualizarModo(); } }).catch(()=>{});
+}
+})();
+</script>
+</body>
+</html>
